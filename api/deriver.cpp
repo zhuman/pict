@@ -169,7 +169,8 @@ void ExclusionDeriver::peformDelete()
 //        for this parameter, organized into buckets by value.
 // Also, ProcessExclusions has set up static ptrs to model, parameter
 //
-inline void ExclusionDeriver::buildExclusion( Exclusion& exclImplied, vector<ExclPtrList>::iterator begin, ExclTermIterList& inserted )
+inline void ExclusionDeriver::buildExclusion( Exclusion& exclImplied, vector<ExclPtrList>::iterator begin,
+                                             ExclTermIterList& inserted, CompletedSearches& completed )
 {
     // derivation can take a long time, use the call back to check if it should be aborted
     if( m_task->AbortGeneration() )
@@ -179,6 +180,33 @@ inline void ExclusionDeriver::buildExclusion( Exclusion& exclImplied, vector<Exc
 
     if( begin != m_end )
     {
+        // Deletions are deferred until this bucket search returns, so size is a mutation version.
+        const size_t exclusionCount = m_exclusions.size();
+        if( completed.exclusionCount != exclusionCount )
+        {
+            completed.states.clear();
+            completed.termCount = 0;
+            completed.exclusionCount = exclusionCount;
+        }
+
+        const size_t remainingBuckets = static_cast<size_t>( m_end - begin );
+        const auto& terms = exclImplied.GetList();
+        size_t stateHash = remainingBuckets;
+        for( const auto& term : terms )
+        {
+            stateHash ^= hash<Parameter*>{}( term.first ) + 0x9e3779b9 + ( stateHash << 6 ) + ( stateHash >> 2 );
+            stateHash ^= hash<int>{}( term.second ) + 0x9e3779b9 + ( stateHash << 6 ) + ( stateHash >> 2 );
+        }
+        const auto matches = completed.states.equal_range( stateHash );
+        for( auto state = matches.first; state != matches.second; ++state )
+        {
+            if( state->second.remainingBuckets == remainingBuckets &&
+                equal( terms.begin(), terms.end(), state->second.terms.begin(), state->second.terms.end() ) )
+            {
+                return;
+            }
+        }
+
         // for each exclusion in this bucket
         for( ExclPtrList::iterator i = begin->begin(); i != begin->end(); ++i )
         {
@@ -209,7 +237,7 @@ inline void ExclusionDeriver::buildExclusion( Exclusion& exclImplied, vector<Exc
 
             if( !alreadyInCollection( exclImplied ) )
             {
-                buildExclusion( exclImplied, begin + 1, inserted );
+                buildExclusion( exclImplied, begin + 1, inserted, completed );
             }
 
             while( inserted.size() > previous )
@@ -217,6 +245,16 @@ inline void ExclusionDeriver::buildExclusion( Exclusion& exclImplied, vector<Exc
                 exclImplied.erase( inserted.back() );
                 inserted.pop_back();
             }
+        }
+
+        // Never remember an unfinished search or one that changed exclusion knowledge.
+        if( exclusionCount == m_exclusions.size() &&
+            completed.states.size() < CompletedSearches::MaxStates &&
+            terms.size() <= CompletedSearches::MaxTerms - completed.termCount )
+        {
+            completed.states.emplace( stateHash, CompletedState{
+                remainingBuckets, vector<ExclusionTerm>( terms.begin(), terms.end() ) } );
+            completed.termCount += terms.size();
         }
     }
     else
@@ -363,7 +401,8 @@ void ExclusionDeriver::DeriveExclusions()
         Exclusion exclImplied( &scratch );
         exclImplied.reserve( m_parameters.size() );
         m_end = buckets.end();
-        buildExclusion( exclImplied, buckets.begin(), inserted );
+        CompletedSearches completed;
+        buildExclusion( exclImplied, buckets.begin(), inserted, completed );
 
         peformDelete();
     }

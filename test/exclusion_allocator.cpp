@@ -1,4 +1,5 @@
 #include "deriver.h"
+#include <iostream>
 #include <stdexcept>
 
 using namespace pictcore;
@@ -182,13 +183,112 @@ void trieKeysStaySortedAcrossEdits()
         require( std::equal( expected.begin(), expected.end(), exclusion.GetList().begin(), exclusion.GetList().end() ) );
     }
 }
+
+size_t derivationCalls = 0;
+
+bool boundRepeatedStateSearch()
+{
+    return ++derivationCalls > 10000;
+}
+
+void repeatedCoverStatesCompleteWithinBudget()
+{
+    Task task( 1 );
+    task.SetAbortCallback( boundRepeatedStateSearch );
+    Parameter pivot( 2, 0, 24, L"pivot", false );
+    Parameter first( 2, 1, 2, L"first", false );
+    Parameter second( 2, 2, 2, L"second", false );
+    Parameter third( 2, 3, 2, L"third", false );
+    Parameter blocker( 2, 4, 2, L"blocker", false );
+    ExclusionDeriver deriver( &task );
+    for( Parameter* parameter : { &pivot, &first, &second, &third, &blocker } )
+    {
+        deriver.AddParameter( parameter );
+    }
+
+    auto add = [&]( Parameter* left, int value, Parameter* right )
+    {
+        Exclusion exclusion;
+        exclusion.insert( ExclusionTerm( left, value ) );
+        exclusion.insert( ExclusionTerm( right, 0 ) );
+        deriver.AddExclusion( exclusion, true );
+    };
+    for( Parameter* selector : { &first, &second, &third } )
+    {
+        for( int value = 0; value < 23; ++value ) add( &pivot, value, selector );
+        add( selector, 0, &blocker );
+    }
+    add( &pivot, 23, &blocker );
+    const ExclusionCollection expected = deriver.GetExclusions();
+    derivationCalls = 0;
+    try
+    {
+        deriver.DeriveExclusions();
+    }
+    catch( GenerationError& error )
+    {
+        require( error.GetErrorType() == ErrorType::GenerationCancelled );
+        throw std::runtime_error( "Repeated-state derivation exceeded 10000 recursive calls" );
+    }
+    require( derivationCalls < 10000 );
+    require( deriver.GetExclusions().size() == expected.size() );
+    for( const auto& exclusion : expected )
+    {
+        require( deriver.GetExclusions().find( exclusion ) != deriver.GetExclusions().end() );
+    }
+}
+
+void newExclusionsAndObsoleteBucketsStayConsistent()
+{
+    Task task( 1 );
+    Parameter pivot( 2, 0, 6, L"pivot", false );
+    Parameter first( 2, 1, 2, L"first", false );
+    Parameter second( 2, 2, 2, L"second", false );
+    ExclusionDeriver deriver( &task );
+    for( Parameter* parameter : { &pivot, &first, &second } )
+    {
+        deriver.AddParameter( parameter );
+    }
+    ExclusionCollection expected;
+    for( int value = 0; value < 6; ++value )
+    {
+        for( Parameter* selector : { &first, &second } )
+        {
+            if( value == 5 && selector == &first ) continue;
+            Exclusion exclusion;
+            exclusion.insert( ExclusionTerm( &pivot, value ) );
+            exclusion.insert( ExclusionTerm( selector, 0 ) );
+            deriver.AddExclusion( exclusion, true );
+            if( selector == &first ) expected.insert( exclusion );
+        }
+    }
+    Exclusion unary;
+    unary.insert( ExclusionTerm( &second, 0 ) );
+    expected.insert( unary );
+    deriver.DeriveExclusions();
+    require( deriver.GetExclusions().size() == expected.size() );
+    for( const auto& exclusion : expected )
+    {
+        require( deriver.GetExclusions().find( exclusion ) != deriver.GetExclusions().end() );
+    }
+}
 }
 
 int main()
 {
-    scratchCopiesUseResource();
-    storedCopiesOutlivePool();
-    derivedExclusionsOutliveScratch();
-    branchRollbackKeepsExclusionsIndependent();
-    trieKeysStaySortedAcrossEdits();
+    try
+    {
+        scratchCopiesUseResource();
+        storedCopiesOutlivePool();
+        derivedExclusionsOutliveScratch();
+        branchRollbackKeepsExclusionsIndependent();
+        trieKeysStaySortedAcrossEdits();
+        repeatedCoverStatesCompleteWithinBudget();
+        newExclusionsAndObsoleteBucketsStayConsistent();
+    }
+    catch( const std::exception& error )
+    {
+        std::cerr << error.what() << '\n';
+        return 1;
+    }
 }
