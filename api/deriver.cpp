@@ -184,28 +184,18 @@ inline void ExclusionDeriver::buildExclusion( Exclusion& exclImplied, vector<Exc
         const size_t exclusionCount = m_exclusions.size();
         if( completed.exclusionCount != exclusionCount )
         {
-            completed.states.clear();
-            completed.insertionOrder.clear();
-            completed.termCount = 0;
+            completed.clear();
             completed.exclusionCount = exclusionCount;
         }
 
         const size_t remainingBuckets = static_cast<size_t>( m_end - begin );
-        const auto& terms = exclImplied.GetList();
-        size_t stateHash = remainingBuckets;
-        for( const auto& term : terms )
+        auto& terms = exclImplied.GetList();
+        // A completed, unchanged search also covers stronger partial exclusions:
+        // extra terms only reject choices or extend conclusions already in the collection.
+        if( completed.states[remainingBuckets] &&
+            completed.states[remainingBuckets]->find_subset( terms ) )
         {
-            stateHash ^= hash<Parameter*>{}( term.first ) + 0x9e3779b9 + ( stateHash << 6 ) + ( stateHash >> 2 );
-            stateHash ^= hash<int>{}( term.second ) + 0x9e3779b9 + ( stateHash << 6 ) + ( stateHash >> 2 );
-        }
-        const auto matches = completed.states.equal_range( stateHash );
-        for( auto state = matches.first; state != matches.second; ++state )
-        {
-            if( state->second.remainingBuckets == remainingBuckets &&
-                equal( terms.begin(), terms.end(), state->second.terms.begin(), state->second.terms.end() ) )
-            {
-                return;
-            }
+            return;
         }
 
         // for each exclusion in this bucket
@@ -252,19 +242,16 @@ inline void ExclusionDeriver::buildExclusion( Exclusion& exclImplied, vector<Exc
         if( exclusionCount == m_exclusions.size() &&
             terms.size() <= CompletedSearches::MaxTerms )
         {
-            // Keep admitting recent states; an early unique-state burst must not disable caching.
-            while( completed.states.size() >= CompletedSearches::MaxStates ||
-                   terms.size() > CompletedSearches::MaxTerms - completed.termCount )
+            // Reclaim trie nodes as well as keys, and keep admitting recent states.
+            if( completed.stateCount >= CompletedSearches::MaxStates ||
+                terms.size() > CompletedSearches::MaxTerms - completed.termCount )
             {
-                auto oldest = completed.states.find( completed.insertionOrder.front() );
-                assert( oldest != completed.states.end() );
-                completed.termCount -= oldest->second.terms.size();
-                completed.states.erase( oldest );
-                completed.insertionOrder.pop_front();
+                completed.clear();
             }
-            completed.states.emplace( stateHash, CompletedState{
-                remainingBuckets, vector<ExclusionTerm>( terms.begin(), terms.end() ) } );
-            completed.insertionOrder.push_back( stateHash );
+            auto& lookup = completed.states[remainingBuckets];
+            if( !lookup ) lookup = std::make_unique<CompletedSearches::Lookup>();
+            if( !lookup->insert( terms ) ) throw std::bad_alloc();
+            ++completed.stateCount;
             completed.termCount += terms.size();
         }
     }
@@ -412,7 +399,7 @@ void ExclusionDeriver::DeriveExclusions()
         Exclusion exclImplied( &scratch );
         exclImplied.reserve( m_parameters.size() );
         m_end = buckets.end();
-        CompletedSearches completed;
+        CompletedSearches completed( buckets.size() );
         buildExclusion( exclImplied, buckets.begin(), inserted, completed );
 
         peformDelete();

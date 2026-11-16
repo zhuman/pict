@@ -55,11 +55,12 @@ PICT uses MsBuild for building. **_build.cmd** script in the root directory will
 
 All build systems require a C++17 compiler and standard library. Exclusion derivation uses a task-local STL memory pool to recycle temporary set nodes and vector buffers without changing derivation order.
 
-Exclusion derivation also caches completed searches by bucket position and exact
-partial exclusion. This avoids repeatedly exploring equivalent cover sets while
-preserving first-visit traversal order. The cache is bounded to 65,536 states and
-1,048,576 stored terms, replaces older entries at capacity, is scoped to one
-parameter's bucket snapshot, and is invalidated when a new exclusion is inserted.
+Exclusion derivation also caches completed searches by bucket position and partial
+exclusion. An unchanged completed search covers stronger partial exclusions too,
+avoiding equivalent or redundant cover sets while preserving first-visit traversal
+order. The cache is bounded to 65,536 states and 1,048,576 stored terms, is cleared
+at capacity so recent states can still be cached, is scoped to one parameter's
+bucket snapshot, and is invalidated when a new exclusion is inserted.
 
 The **test** folder contains all that is necessary to test PICT. You need Perl to run the tests. **_test.cmd** is the script that does it all.
 

@@ -2,7 +2,7 @@
 
 #include "generator.h"
 #include "trie.h"
-#include <unordered_map>
+#include <memory>
 
 namespace pictcore
 {
@@ -27,21 +27,25 @@ public:
     void DeriveExclusions();
 
 private:
-    struct CompletedState
-    {
-        size_t remainingBuckets;
-        std::vector<ExclusionTerm> terms;
-    };
-
     struct CompletedSearches
     {
         static constexpr size_t MaxStates = 65536;
         static constexpr size_t MaxTerms = 1048576;
+        using Lookup = trie<Exclusion::_ExclusionVec>;
+
+        explicit CompletedSearches( size_t buckets ) : states( buckets + 1 ) {}
+
+        void clear()
+        {
+            for( auto& lookup : states ) lookup.reset();
+            stateCount = 0;
+            termCount = 0;
+        }
 
         size_t exclusionCount = 0;
+        size_t stateCount = 0;
         size_t termCount = 0;
-        std::unordered_multimap<size_t, CompletedState> states;
-        std::deque<size_t> insertionOrder;
+        std::vector<std::unique_ptr<Lookup>> states;
     };
 
     void buildExclusion( Exclusion &Excl, std::vector<ExclPtrList>::iterator begin,

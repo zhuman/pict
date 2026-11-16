@@ -285,10 +285,61 @@ void newExclusionsAndObsoleteBucketsStayConsistent()
             if( selector == &first ) expected.insert( exclusion );
         }
     }
+
     Exclusion unary;
     unary.insert( ExclusionTerm( &second, 0 ) );
     expected.insert( unary );
     deriver.DeriveExclusions();
+    require( deriver.GetExclusions().size() == expected.size() );
+    for( const auto& exclusion : expected )
+    {
+        require( deriver.GetExclusions().find( exclusion ) != deriver.GetExclusions().end() );
+    }
+}
+
+void completedSearchesCoverStrongerPartialExclusions()
+{
+    Task task( 1 );
+    task.SetAbortCallback( boundRepeatedStateSearch );
+    Parameter pivot( 2, 0, 24, L"pivot", false );
+    Parameter shared( 2, 1, 2, L"shared", false );
+    Parameter blocker( 2, 2, 2, L"blocker", false );
+    std::vector<std::unique_ptr<Parameter>> alternatives;
+    ExclusionDeriver deriver( &task );
+    for( Parameter* parameter : { &pivot, &shared, &blocker } )
+    {
+        deriver.AddParameter( parameter );
+    }
+    auto add = [&]( Parameter* left, int value, Parameter* right )
+    {
+        Exclusion exclusion;
+        exclusion.insert( ExclusionTerm( left, value ) );
+        exclusion.insert( ExclusionTerm( right, 0 ) );
+        deriver.AddExclusion( exclusion, true );
+    };
+    for( int value = 0; value < 23; ++value )
+    {
+        alternatives.push_back( std::make_unique<Parameter>( 2, value + 3, 2, L"alternative", false ) );
+        Parameter* alternative = alternatives.back().get();
+        deriver.AddParameter( alternative );
+        add( &pivot, value, &shared );
+        add( &pivot, value, alternative );
+        add( alternative, 0, &blocker );
+    }
+    add( &shared, 0, &blocker );
+    add( &pivot, 23, &blocker );
+    const ExclusionCollection expected = deriver.GetExclusions();
+    derivationCalls = 0;
+    derivationBudget = 10000;
+    try
+    {
+        deriver.DeriveExclusions();
+    }
+    catch( GenerationError& error )
+    {
+        require( error.GetErrorType() == ErrorType::GenerationCancelled );
+        throw std::runtime_error( "Stronger-state derivation exceeded 10000 recursive calls" );
+    }
     require( deriver.GetExclusions().size() == expected.size() );
     for( const auto& exclusion : expected )
     {
@@ -307,8 +358,9 @@ int main()
         branchRollbackKeepsExclusionsIndependent();
         trieKeysStaySortedAcrossEdits();
         repeatedCoverStatesCompleteWithinBudget( 0, 10000 );
-        repeatedCoverStatesCompleteWithinBudget( 9, 1000000 );
+        repeatedCoverStatesCompleteWithinBudget( 10, 1000000 );
         newExclusionsAndObsoleteBucketsStayConsistent();
+        completedSearchesCoverStrongerPartialExclusions();
     }
     catch( const std::exception& error )
     {
