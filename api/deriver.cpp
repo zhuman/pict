@@ -70,9 +70,6 @@ pair<ExclusionCollection::iterator, bool> ExclusionDeriver::AddExclusion( Exclus
     pair<ExclusionCollection::iterator, bool> result = m_exclusions.insert( excl );
     if( result.second )
     {
-        // later, we will attempt to find sorted lists so 
-        // the lookup structure should keep them sorted, too
-        sort( excl.lbegin(), excl.lend() );
         m_lookup.insert( excl.GetList() );
     }
 
@@ -262,7 +259,6 @@ inline void ExclusionDeriver::buildExclusion( Exclusion& exclImplied, vector<Exc
 //
 inline bool ExclusionDeriver::alreadyInCollection( Exclusion &excl )
 {
-    sort( excl.lbegin(), excl.lend() );
     return m_lookup.find_subset( excl.GetList() );
 }
 
@@ -363,6 +359,7 @@ void ExclusionDeriver::DeriveExclusions()
 
         // recursively build all cover sets, building up exclusion on other params
         Exclusion exclImplied( &scratch );
+        exclImplied.reserve( m_parameters.size() );
         m_end = buckets.end();
         buildExclusion( exclImplied, buckets.begin(), inserted );
 

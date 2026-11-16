@@ -264,16 +264,26 @@ public:
     size_t size()  const         { return( col.size() ); }
     bool   empty() const         { return( col.empty() ); }
 
-    // exclusion also represented as a sortable list, used as a trie key for
-    // subset lookups (see trie::find_subset)
+    // Keep the trie key in pointer/value order, independently of the set's
+    // parameter-sequence ordering.
     _ExclusionVec::iterator lbegin() { return( vec.begin() ); }
     _ExclusionVec::iterator lend()   { return( vec.end() ); }
     _ExclusionVec &GetList()         { return( vec ); }
 
+    void reserve( size_t terms ) { vec.reserve( terms ); }
+
     std::pair<iterator, bool> insert( const ExclusionTerm& Term )
     {
         std::pair<iterator, bool> ret = col.insert( Term );
-        if( ret.second ) vec.push_back( Term );
+        if( ret.second )
+        {
+            auto position = vec.end();
+            if( !vec.empty() && Term < vec.back() )
+            {
+                position = std::lower_bound( vec.begin(), vec.end(), Term );
+            }
+            vec.insert( position, Term );
+        }
         assert( col.size() == vec.size() );
         return ret;
     }
@@ -286,7 +296,7 @@ public:
 
     void erase( iterator position )
     {
-        auto term = std::find( vec.begin(), vec.end(), *position );
+        auto term = std::lower_bound( vec.begin(), vec.end(), *position );
         assert( term != vec.end() );
         vec.erase( term );
         col.erase( position );

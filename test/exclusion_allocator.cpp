@@ -157,6 +157,31 @@ void branchRollbackKeepsExclusionsIndependent()
         require( deriver.GetExclusions().find( exclusion ) != deriver.GetExclusions().end() );
     }
 }
+
+void trieKeysStaySortedAcrossEdits()
+{
+    Parameter first( 2, 0, 2, L"first", false );
+    Parameter second( 2, 1, 2, L"second", false );
+    Exclusion exclusion;
+    exclusion.reserve( 4 );
+    std::vector<ExclusionTerm> expected;
+    for( ExclusionTerm term : { ExclusionTerm( &second, 1 ), ExclusionTerm( &first, 1 ),
+                                ExclusionTerm( &second, 0 ), ExclusionTerm( &first, 0 ) } )
+    {
+        exclusion.insert( term );
+        exclusion.insert( term );
+        expected.push_back( term );
+        std::sort( expected.begin(), expected.end() );
+        require( std::equal( expected.begin(), expected.end(), exclusion.GetList().begin(), exclusion.GetList().end() ) );
+    }
+    while( !exclusion.empty() )
+    {
+        auto term = exclusion.begin();
+        expected.erase( std::find( expected.begin(), expected.end(), *term ) );
+        exclusion.erase( term );
+        require( std::equal( expected.begin(), expected.end(), exclusion.GetList().begin(), exclusion.GetList().end() ) );
+    }
+}
 }
 
 int main()
@@ -165,4 +190,5 @@ int main()
     storedCopiesOutlivePool();
     derivedExclusionsOutliveScratch();
     branchRollbackKeepsExclusionsIndependent();
+    trieKeysStaySortedAcrossEdits();
 }
