@@ -61,6 +61,7 @@ avoiding equivalent or redundant cover sets while preserving first-visit travers
 order. The cache is bounded to 65,536 states and 1,048,576 stored terms, is cleared
 at capacity so recent states can still be cached, is scoped to one parameter's
 bucket snapshot, and is invalidated when a new exclusion is inserted.
+Already-covered buckets stop once their unchanged continuation completes.
 
 The **test** folder contains all that is necessary to test PICT. You need Perl to run the tests. **_test.cmd** is the script that does it all.
 

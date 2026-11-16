@@ -229,6 +229,14 @@ inline void ExclusionDeriver::buildExclusion( Exclusion& exclImplied, vector<Exc
             if( !alreadyInCollection( exclImplied ) )
             {
                 buildExclusion( exclImplied, begin + 1, inserted, completed );
+
+                // This choice added no terms. Its unchanged completed suffix
+                // dominates every other choice in this already-covered bucket.
+                if( !exclImplied.empty() && inserted.size() == previous &&
+                    exclusionCount == m_exclusions.size() )
+                {
+                    break;
+                }
             }
 
             while( inserted.size() > previous )
