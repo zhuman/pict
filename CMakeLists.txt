@@ -31,6 +31,7 @@ project(
 
 # Build configuration
 option(PICT_RUN_TESTS_ENABLED        "Enable running tests after build" ON)
+option(PICT_STAGE_TIMING_ENABLED     "Log timestamped generation stages to stderr" OFF)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -84,6 +85,7 @@ endif()
 target_compile_definitions(${PICT_BUILD_OPTIONS}
   INTERFACE
     $<IF:$<CONFIG:Debug>,_DEBUG,NDEBUG>
+    $<$<BOOL:${PICT_STAGE_TIMING_ENABLED}>:PICT_STAGE_TIMING>
 )
 
 add_subdirectory (api)

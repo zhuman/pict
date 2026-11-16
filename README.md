@@ -74,6 +74,13 @@ Assuming installation of CMake and C++ toolchain, following set of commands will
 
 Most commonly, you will want to debug the command-line tool. Start in the **pictcli** project, **cli/pict.cpp** file. You'll find **wmain** routine there which would be a convenient place to put the very first breakpoint.
 
+For an optimized diagnostic build with symbols and stage timings, configure CMake with
+`-DCMAKE_BUILD_TYPE=RelWithDebInfo -DPICT_STAGE_TIMING_ENABLED=ON` and build with
+`--config RelWithDebInfo`. Timings are disabled by default. When enabled, stderr
+reports stage boundaries with UTC timestamps, thread IDs, submodel indices, and
+elapsed milliseconds; stdout keeps its usual test-case format. Nested stages
+include their children, so their durations should not be added together.
+
 ## PICT as a container
 
 To build a container image with PICT, just execute

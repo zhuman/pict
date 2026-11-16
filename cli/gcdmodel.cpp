@@ -141,6 +141,9 @@ typedef map< CModelParameter*, Parameter* > CParamMap;
 //
 ErrorCode CGcdData::TranslateToGCD()
 {
+    StageTimer stage( L"model.translate" );
+    StageTimer wiring( L"model.wire" );
+
     Model* rootModel = new Model( L"", GenerationType::MixedOrder, _modelData.Order, _modelData.RandSeed );
     Models.push_back( rootModel );
 
@@ -276,12 +279,15 @@ ErrorCode CGcdData::TranslateToGCD()
     // add user-specified exclusions now
     
     // parse the constraints and make exclusions out of them
+    wiring.Finish();
+    StageTimer constraints( L"constraints.convert" );
     ConstraintsInterpreter interpreter( _modelData, Parameters );
     if( !interpreter.ConvertToExclusions( Exclusions ) )
     {
         return( ErrorCode::ErrorCode_BadConstraints );
     }
     _constraintWarnings.assign( interpreter.GetWarnings().begin(), interpreter.GetWarnings().end() );
+    constraints.Finish();
 
     if( _modelData.Verbose )
     {

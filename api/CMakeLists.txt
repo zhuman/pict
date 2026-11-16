@@ -11,6 +11,7 @@ set(pict_api_inc
   ${CMAKE_CURRENT_SOURCE_DIR}/generator.h
   ${CMAKE_CURRENT_SOURCE_DIR}/pictapi.h
   ${CMAKE_CURRENT_SOURCE_DIR}/resource.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/stage.h
   ${CMAKE_CURRENT_SOURCE_DIR}/trie.h
 )
 

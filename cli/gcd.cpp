@@ -11,6 +11,8 @@ namespace pictcli_gcd
 //
 ErrorCode GcdRunner::generateResults( IN CModelData& modelData, IN bool justNegative )
 {
+    StageTimer stage( justNegative ? L"generation.negative" : L"generation.positive" );
+
     // translate all data to gcd-readable format, build exclusions etc.
     CGcdData gcdData( modelData );
     ErrorCode err = gcdData.TranslateToGCD();
@@ -37,8 +39,11 @@ ErrorCode GcdRunner::generateResults( IN CModelData& modelData, IN bool justNega
     model->GetTask()->SeedRandom( static_cast<unsigned int>( modelData.RandSeed ) );
     try
     {
+        size_t submodelIndex = 0;
         for( auto & submodel : model->GetSubmodels() )
         {
+            StageTimer submodelStage( L"generation.submodel", ++submodelIndex );
+
             // each submodel may assign different order to parameters
             if( !gcdData.FixParamOrder( submodel ))
             {
@@ -66,7 +71,10 @@ ErrorCode GcdRunner::generateResults( IN CModelData& modelData, IN bool justNega
             modelData.PrintModelContents( L"*** AFTER ORDER IS FIXED ***" );
         }
 
-        model->Generate();
+        {
+            StageTimer rootStage( L"generation.root" );
+            model->Generate();
+        }
 
         modelData.AddToTotalCombinationsCount( model->GetTotalCombinationsCount() );
         modelData.AddToRemainingCombinationsCount( model->GetRemainingCombinationsCount() );
@@ -112,6 +120,8 @@ void GcdRunner::translateResults( IN CModelData&       modelData,
                                   IN ResultCollection& resultCollection,
                                   IN bool              justNegative )
 {
+    StageTimer stage( L"results.translate" );
+
     for( auto & row : resultCollection )
     {
         bool isNegativeTestCase = false;

@@ -101,6 +101,7 @@ void Model::gcd( ComboCollection &vecCombo )
 {
     if( m_parameters.empty() ) return;
 
+    StageTimer preparation( L"generation.prepare" );
     processExclusions( vecCombo );
 
     fixRowSeeds();
@@ -118,8 +119,10 @@ void Model::gcd( ComboCollection &vecCombo )
     GetTask()->AllocWorkbuf( maxRange );
 
     m_totalCombinations = GlobalZerosCount;
+    preparation.Finish();
 
     // main loop: repeat until we've found all required parameter value combinations
+    StageTimer rows( L"generation.rows" );
     while( GlobalZerosCount > 0 )
     {
         DOUT( L"Main loop: GlobalZerosCount " << GlobalZerosCount << L"\n" );
@@ -395,6 +398,8 @@ void Model::gcd( ComboCollection &vecCombo )
         } // end: non-Approximate
     }
 
+    rows.Finish();
+    StageTimer postprocessing( L"generation.postprocess" );
     m_remainingCombinations = GlobalZerosCount;
 
     // tear down all the combinations
@@ -635,6 +640,7 @@ void Model::resolvePseudoParams()
 //
 bool Model::excludeConflictingParamValues()
 {
+    StageTimer stage( L"exclusions.submodel_conflicts" );
     bool ret = false;
     // for each pair of submodels (pseudoparams)
     for( size_t pseudo1 = 0; pseudo1 < GetParameters().size(); ++pseudo1 )
@@ -706,6 +712,8 @@ bool Model::excludeConflictingParamValues()
 //
 void Model::Generate()
 {
+    StageTimer stage( L"model.generate" );
+
     DOUT( L"Num of params " << (int) m_parameters.size() <<
           L", order: "      << m_order <<
           L", seed: "       << m_randomSeed << endl );
@@ -812,6 +820,7 @@ void Model::GenerateVirtualRoot()
 //
 void Model::generateMixedOrder()
 {
+    StageTimer setup( L"submodels.prepare" );
     GlobalZerosCount = 0;
     // turn each submodel's output into a PseudoParameter and add to model
     for( SubmodelCollection::iterator im = m_submodels.begin(); im != m_submodels.end(); ++im )
@@ -828,6 +837,7 @@ void Model::generateMixedOrder()
     // sort parameter vector by order to generate parameter combinations
     sort( m_parameters.begin(), m_parameters.end(), GreaterThanByOrder() );
 
+    setup.Finish();
     bool r1 = mapExclusionsToPseudoParameters();
     bool r2 = excludeConflictingParamValues();
     // TODO: do we realy need to derive if the real exclusions were mapped?
@@ -838,6 +848,7 @@ void Model::generateMixedOrder()
 
     // for (each order, from highest to lowest)
     //   for every N-way combinations of these and higher-order parameters
+    StageTimer combinations( L"combinations.create" );
     for( ParamCollection::iterator lastOrder = m_parameters.begin(); lastOrder != m_parameters.end(); /*increment in mid-loop*/ )
     {
         int order = ( *lastOrder )->GetOrder();
@@ -848,6 +859,7 @@ void Model::generateMixedOrder()
         choose( m_parameters.begin(), lastOrder, order, order, baseCombo, vecCombo );
     }
 
+    combinations.Finish();
     gcd( vecCombo );
 }
 
@@ -1058,6 +1070,7 @@ Exclusion Model::generateRandomRow()
 //
 bool Model::mapExclusionsToPseudoParameters()
 {
+    StageTimer stage( L"exclusions.map_submodels" );
     bool ret = false;
 
     // for each pseudoparameter
@@ -1147,6 +1160,7 @@ bool Model::mapExclusionsToPseudoParameters()
 //
 void Model::deriveSubmodelExclusions()
 {
+    StageTimer stage( L"exclusions.prepare_submodels" );
     ExclusionDeriver deriver( GetTask() );
 
     // the deriver must know about pseudo parameters
@@ -1187,6 +1201,8 @@ void Model::deriveSubmodelExclusions()
 //
 void Model::processExclusions( ComboCollection& vecCombo )
 {
+    StageTimer stage( L"exclusions.apply" );
+
     // Sort every parameter's collection of combinations to prepare for set intersection
     for( vector<Parameter*>::iterator ip = m_parameters.begin(); ip != m_parameters.end(); ++ip )
     {

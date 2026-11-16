@@ -189,6 +189,7 @@ int __cdecl execute
     )
 {
     time_t start = time( nullptr );
+    StageTimer total( L"tool.execute" );
 
     CModelData modelData;
 
@@ -197,15 +198,19 @@ int __cdecl execute
         return( (int)ErrorCode::ErrorCode_BadOption );
     }
 
+    StageTimer parsing( L"model.parse" );
     if( !modelData.ReadModel( wstring( args[ 1 ] )))
     {
         return( (int)ErrorCode::ErrorCode_BadModel );
     }
+    parsing.Finish();
 
+    StageTimer seeds( L"seeds.read" );
     if( !modelData.ReadRowSeedFile( modelData.RowSeedsFile ))
     {
         return( (int)ErrorCode::ErrorCode_BadRowSeedFile );
     }
+    seeds.Finish();
 
     // Resolve worker threads once. When best-of-N is active, the threads parallelize
     // independent seed trials (engine stays serial per trial); otherwise they
@@ -269,6 +274,7 @@ int __cdecl execute
     }
     else
     {
+        StageTimer formatting( L"results.format" );
         result.PrintConstraintWarnings();
 
         wostringstream outputStream;
@@ -312,7 +318,13 @@ int __cdecl wmain
     wstring output;
     int ret = execute( argc, args, output );
 
-    std::wcout << output;
+    {
+        StageTimer writing( L"results.write" );
+        std::wcout << output;
+#if defined(PICT_STAGE_TIMING)
+        std::wcout.flush();
+#endif
+    }
 
     return ret;
 }

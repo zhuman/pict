@@ -64,12 +64,16 @@ void Task::DeallocWorkbuf()
 //
 void Task::PrepareForGeneration()
 {
+    StageTimer stage( L"model.prepare" );
+
     // new models could have been added to the root
     // repropagate the task pointer to all models
     m_rootModel->WireTask(this);
 
     // run the deriver on exclusions
     deriveExclusions();
+
+    StageTimer propagation( L"exclusions.propagate" );
 
     // propagate exclusions wiring to appropriate submodel
     // add each exclusion to that model in the hierarchy which is the most suitable:

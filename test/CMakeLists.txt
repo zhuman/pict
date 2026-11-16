@@ -17,3 +17,11 @@ add_test(NAME exclusion_allocator COMMAND exclusion_allocator_test)
 add_executable(trie_test trie.cpp)
 target_link_libraries(trie_test PRIVATE pict_api PictBuildOptions)
 add_test(NAME trie COMMAND trie_test)
+
+if(PICT_STAGE_TIMING_ENABLED)
+  add_test(
+    NAME stage_timing
+    COMMAND ${CMAKE_COMMAND} -DPICT_EXECUTABLE=$<TARGET_FILE:pict_cli>
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/stage_timing.cmake
+  )
+endif()

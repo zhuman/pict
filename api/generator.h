@@ -18,6 +18,7 @@
 #include <functional>
 #include <cassert>
 #include "threadpool.h"
+#include "stage.h"
 
 //
 // Logging facility

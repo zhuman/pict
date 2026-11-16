@@ -285,6 +285,8 @@ void ExclusionDeriver::DeriveExclusions()
     // For preview generation we don't invoke the core of the deriver at all
     if( m_task->GetGenerationMode() != GenerationMode::Regular ) return;
 
+    StageTimer stage( L"exclusions.derive" );
+
     DOUT( L"Exclusions:\n" );
     for( auto & exclusion : m_exclusions )
     {
