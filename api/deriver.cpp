@@ -185,6 +185,7 @@ inline void ExclusionDeriver::buildExclusion( Exclusion& exclImplied, vector<Exc
         if( completed.exclusionCount != exclusionCount )
         {
             completed.states.clear();
+            completed.insertionOrder.clear();
             completed.termCount = 0;
             completed.exclusionCount = exclusionCount;
         }
@@ -249,11 +250,21 @@ inline void ExclusionDeriver::buildExclusion( Exclusion& exclImplied, vector<Exc
 
         // Never remember an unfinished search or one that changed exclusion knowledge.
         if( exclusionCount == m_exclusions.size() &&
-            completed.states.size() < CompletedSearches::MaxStates &&
-            terms.size() <= CompletedSearches::MaxTerms - completed.termCount )
+            terms.size() <= CompletedSearches::MaxTerms )
         {
+            // Keep admitting recent states; an early unique-state burst must not disable caching.
+            while( completed.states.size() >= CompletedSearches::MaxStates ||
+                   terms.size() > CompletedSearches::MaxTerms - completed.termCount )
+            {
+                auto oldest = completed.states.find( completed.insertionOrder.front() );
+                assert( oldest != completed.states.end() );
+                completed.termCount -= oldest->second.terms.size();
+                completed.states.erase( oldest );
+                completed.insertionOrder.pop_front();
+            }
             completed.states.emplace( stateHash, CompletedState{
                 remainingBuckets, vector<ExclusionTerm>( terms.begin(), terms.end() ) } );
+            completed.insertionOrder.push_back( stateHash );
             completed.termCount += terms.size();
         }
     }

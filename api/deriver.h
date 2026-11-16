@@ -41,6 +41,7 @@ private:
         size_t exclusionCount = 0;
         size_t termCount = 0;
         std::unordered_multimap<size_t, CompletedState> states;
+        std::deque<size_t> insertionOrder;
     };
 
     void buildExclusion( Exclusion &Excl, std::vector<ExclPtrList>::iterator begin,

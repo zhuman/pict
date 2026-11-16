@@ -1,5 +1,6 @@
 #include "deriver.h"
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 
 using namespace pictcore;
@@ -185,23 +186,31 @@ void trieKeysStaySortedAcrossEdits()
 }
 
 size_t derivationCalls = 0;
+size_t derivationBudget = 0;
 
 bool boundRepeatedStateSearch()
 {
-    return ++derivationCalls > 10000;
+    return ++derivationCalls > derivationBudget;
 }
 
-void repeatedCoverStatesCompleteWithinBudget()
+void repeatedCoverStatesCompleteWithinBudget( int prefixParameters, size_t budget )
 {
     Task task( 1 );
     task.SetAbortCallback( boundRepeatedStateSearch );
-    Parameter pivot( 2, 0, 24, L"pivot", false );
-    Parameter first( 2, 1, 2, L"first", false );
-    Parameter second( 2, 2, 2, L"second", false );
-    Parameter third( 2, 3, 2, L"third", false );
-    Parameter blocker( 2, 4, 2, L"blocker", false );
+    Parameter pivot( 2, 0, prefixParameters + 24, L"pivot", false );
+    Parameter first( 2, prefixParameters + 1, 2, L"first", false );
+    Parameter second( 2, prefixParameters + 2, 2, L"second", false );
+    Parameter third( 2, prefixParameters + 3, 2, L"third", false );
+    Parameter blocker( 2, prefixParameters + 4, 2, L"blocker", false );
+    std::vector<std::unique_ptr<Parameter>> prefix;
     ExclusionDeriver deriver( &task );
-    for( Parameter* parameter : { &pivot, &first, &second, &third, &blocker } )
+    deriver.AddParameter( &pivot );
+    for( int bit = 0; bit < prefixParameters; ++bit )
+    {
+        prefix.push_back( std::make_unique<Parameter>( 2, bit + 1, 2, L"prefix", false ) );
+        deriver.AddParameter( prefix.back().get() );
+    }
+    for( Parameter* parameter : { &first, &second, &third, &blocker } )
     {
         deriver.AddParameter( parameter );
     }
@@ -215,12 +224,26 @@ void repeatedCoverStatesCompleteWithinBudget()
     };
     for( Parameter* selector : { &first, &second, &third } )
     {
-        for( int value = 0; value < 23; ++value ) add( &pivot, value, selector );
+        for( int value = 0; value < 23; ++value ) add( &pivot, prefixParameters + value, selector );
         add( selector, 0, &blocker );
     }
-    add( &pivot, 23, &blocker );
-    const ExclusionCollection expected = deriver.GetExclusions();
+    add( &pivot, prefixParameters + 23, &blocker );
+    ExclusionCollection expected = deriver.GetExclusions();
+    for( int bit = 0; bit < prefixParameters; ++bit )
+    {
+        for( int value = 0; value < 2; ++value )
+        {
+            Exclusion exclusion;
+            exclusion.insert( ExclusionTerm( &pivot, bit ) );
+            exclusion.insert( ExclusionTerm( prefix[bit].get(), value ) );
+            deriver.AddExclusion( exclusion, true );
+        }
+        Exclusion unary;
+        unary.insert( ExclusionTerm( &pivot, bit ) );
+        expected.insert( unary );
+    }
     derivationCalls = 0;
+    derivationBudget = budget;
     try
     {
         deriver.DeriveExclusions();
@@ -228,9 +251,9 @@ void repeatedCoverStatesCompleteWithinBudget()
     catch( GenerationError& error )
     {
         require( error.GetErrorType() == ErrorType::GenerationCancelled );
-        throw std::runtime_error( "Repeated-state derivation exceeded 10000 recursive calls" );
+        throw std::runtime_error( "Repeated-state derivation exceeded " + std::to_string( budget ) + " recursive calls" );
     }
-    require( derivationCalls < 10000 );
+    require( derivationCalls < budget );
     require( deriver.GetExclusions().size() == expected.size() );
     for( const auto& exclusion : expected )
     {
@@ -283,7 +306,8 @@ int main()
         derivedExclusionsOutliveScratch();
         branchRollbackKeepsExclusionsIndependent();
         trieKeysStaySortedAcrossEdits();
-        repeatedCoverStatesCompleteWithinBudget();
+        repeatedCoverStatesCompleteWithinBudget( 0, 10000 );
+        repeatedCoverStatesCompleteWithinBudget( 9, 1000000 );
         newExclusionsAndObsoleteBucketsStayConsistent();
     }
     catch( const std::exception& error )

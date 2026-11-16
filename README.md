@@ -58,8 +58,8 @@ All build systems require a C++17 compiler and standard library. Exclusion deriv
 Exclusion derivation also caches completed searches by bucket position and exact
 partial exclusion. This avoids repeatedly exploring equivalent cover sets while
 preserving first-visit traversal order. The cache is bounded to 65,536 states and
-1,048,576 stored terms, is scoped to one parameter's bucket snapshot, and is
-invalidated when a new exclusion is inserted.
+1,048,576 stored terms, replaces older entries at capacity, is scoped to one
+parameter's bucket snapshot, and is invalidated when a new exclusion is inserted.
 
 The **test** folder contains all that is necessary to test PICT. You need Perl to run the tests. **_test.cmd** is the script that does it all.
 
