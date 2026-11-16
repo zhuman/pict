@@ -13,3 +13,7 @@ add_test(
 add_executable(exclusion_allocator_test exclusion_allocator.cpp)
 target_link_libraries(exclusion_allocator_test PRIVATE pict_api PictBuildOptions)
 add_test(NAME exclusion_allocator COMMAND exclusion_allocator_test)
+
+add_executable(trie_test trie.cpp)
+target_link_libraries(trie_test PRIVATE pict_api PictBuildOptions)
+add_test(NAME trie COMMAND trie_test)

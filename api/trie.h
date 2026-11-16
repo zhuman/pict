@@ -3,7 +3,10 @@
 // ------------------------------------------------------------------------------
 #pragma once
 
-#include <map>
+#include <algorithm>
+#include <functional>
+#include <memory>
+#include <vector>
 
 //
 //
@@ -12,12 +15,28 @@ template <class Item>
 class trienode
 {
 public:
-    typedef std::map< Item, trienode<Item>* > TNodes;
+    typedef std::vector< std::pair<Item, trienode<Item>*> > TNodes;
 
     TNodes children;
     bool   valid;
 
     trienode() : valid( false ) {}
+
+    typename TNodes::iterator lower_bound( const Item& item )
+    {
+        return std::lower_bound( children.begin(), children.end(), item,
+            []( const typename TNodes::value_type& child, const Item& key )
+            {
+                return std::less<Item>()( child.first, key );
+            } );
+    }
+
+    typename TNodes::iterator find( const Item& item )
+    {
+        auto found = lower_bound( item );
+        return found != children.end() && !std::less<Item>()( item, found->first )
+            ? found : children.end();
+    }
 
     ~trienode()
     {
@@ -67,24 +86,22 @@ public:
         for( typename Col::iterator ic = t.begin(); ic != t.end(); ++ic )
         {
             typename TNodeCol::iterator found;
-            found = current->children.find( *ic );
-            if( found == current->children.end() )
+            found = current->lower_bound( *ic );
+            if( found == current->children.end() || std::less<typename Col::value_type>()( *ic, found->first ) )
             {
-                trienode< typename Col::value_type > *node = nullptr;
+                std::unique_ptr<trienode<typename Col::value_type>> node;
 
                 try
                 {
-                    node = new trienode < typename Col::value_type >;
+                    node.reset( new trienode<typename Col::value_type> );
                 }
                 catch(const std::bad_alloc& )
                 {
                     return( false );
                 }
 
-                std::pair<typename TNodeCol::iterator, bool> ret = current->children.insert( make_pair( *ic, node ) );
-                if( !ret.second ) return( false );
-
-                found = ret.first;
+                found = current->children.insert( found, std::make_pair( *ic, node.get() ) );
+                node.release();
             }
             current = found->second;
         }
@@ -140,7 +157,7 @@ private:
     // by matching a subsequence of [qbegin, qend). checkValid is false only for
     // the initial (root) call with a non-empty query, so the empty key is not
     // treated as a match there - preserving the original find_prefix semantics.
-    // Children are visited in ascending key order (std::map) and the query is
+    // Children are visited in ascending key order and the query is
     // sorted ascending, so once a child's label exceeds every remaining query
     // element we can stop.
     //
@@ -150,6 +167,22 @@ private:
                   bool checkValid )
     {
         if( checkValid && node->valid ) return( true );
+
+        // Wide nodes are cheaper to probe using the few labels in the query.
+        if( node->children.size() > static_cast<size_t>( std::distance( qbegin, qend ) ) )
+        {
+            for( auto q = qbegin; q != qend; ++q )
+            {
+                auto child = node->find( *q );
+                if( child != node->children.end() )
+                {
+                    auto next = q;
+                    ++next;
+                    if( psubset( child->second, next, qend, true ) ) return( true );
+                }
+            }
+            return( false );
+        }
 
         for( typename TNodeCol::iterator ci = node->children.begin();
              ci != node->children.end(); ++ci )
@@ -185,7 +218,7 @@ private:
         trienode<typename Col::value_type> *current = m_root;
         for( typename Col::iterator ic = t.begin(); ic != t.end(); ++ic )
         {
-            typename TNodeCol::iterator found = current->children.find( *ic );
+            typename TNodeCol::iterator found = current->find( *ic );
             if( found == current->children.end() ) return( nullptr );
 
             current = found->second;
@@ -201,7 +234,7 @@ private:
         trienode<typename Col::value_type> *current = m_root;
         for( typename Col::iterator ic = t.begin(); ic != t.end(); ++ic )
         {
-            typename TNodeCol::iterator found = current->children.find( *ic );
+            typename TNodeCol::iterator found = current->find( *ic );
             if( found == current->children.end() ) return( nullptr );
 
             current = found->second;
