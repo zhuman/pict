@@ -192,7 +192,7 @@ inline void ExclusionDeriver::buildExclusion( Exclusion& exclImplied, vector<Exc
             if( !consistent( exclImplied, **i ) ) continue; 
 
             // merge the exclusion into the given one to make a new one
-            Exclusion excl( exclImplied );
+            Exclusion excl( exclImplied, exclImplied.GetList().get_allocator().resource() );
             for( Exclusion::iterator ie = ( *i )->begin(); ie != ( *i )->end(); ++ie )
             {
                 if( ie->first != m_currentParam )
@@ -305,6 +305,10 @@ void ExclusionDeriver::DeriveExclusions()
         }
     }
 
+    // Recycle temporary set nodes and vector buffers across recursive branches.
+    // Each derivation owns its pool; independent tasks never share it.
+    std::pmr::unsynchronized_pool_resource scratch;
+
     while( !m_worklist.empty() )
     {
         DOUT( L"worklist size: " << static_cast<int>( m_worklist.size() ) << L"\n" );
@@ -349,7 +353,7 @@ void ExclusionDeriver::DeriveExclusions()
         if( n < m_currentParam->GetValueCount() ) continue;
 
         // recursively build all cover sets, building up exclusion on other params
-        Exclusion exclImplied;
+        Exclusion exclImplied( &scratch );
         m_end = buckets.end();
         buildExclusion( exclImplied, buckets.begin() );
 

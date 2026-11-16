@@ -10,6 +10,7 @@
 #include <list>
 #include <set>
 #include <map>
+#include <memory_resource>
 #include <queue>
 #include <deque>
 #include <iostream>
@@ -238,8 +239,8 @@ public:
 class Exclusion
 {
 public:
-    typedef std::set<ExclusionTerm, ExclusionTermCompare> _Exclusion;
-    typedef std::vector<ExclusionTerm>                    _ExclusionVec;
+    typedef std::pmr::set<ExclusionTerm, ExclusionTermCompare> _Exclusion;
+    typedef std::pmr::vector<ExclusionTerm>                    _ExclusionVec;
     typedef _Exclusion::iterator                          iterator;
     typedef _Exclusion::const_iterator                    const_iterator;
     typedef _Exclusion::reference                         reference;
@@ -247,6 +248,14 @@ public:
     typedef _Exclusion::value_type                        value_type;
 
     Exclusion() : m_deleted( false ) {}
+
+    explicit Exclusion( std::pmr::memory_resource* resource ) :
+        col( resource ), vec( resource ), m_deleted( false ) {}
+
+    // Explicit allocator copies share scratch storage; ordinary copies use the
+    // default resource so stored exclusions never depend on a temporary pool.
+    Exclusion( const Exclusion& other, std::pmr::memory_resource* resource ) :
+        col( other.col, resource ), vec( other.vec, resource ), m_deleted( other.m_deleted ) {}
 
     iterator       begin()       { return( col.begin() ); }
     iterator       end()         { return( col.end() ); }

@@ -53,6 +53,8 @@ Use **pict.sln** to open the solution in Visual Studio 2022. You will need VC++ 
 
 PICT uses MsBuild for building. **_build.cmd** script in the root directory will build both Debug and Release from the command-line.
 
+All build systems require a C++17 compiler and standard library. Exclusion derivation uses a task-local STL memory pool to recycle temporary set nodes and vector buffers without changing derivation order.
+
 The **test** folder contains all that is necessary to test PICT. You need Perl to run the tests. **_test.cmd** is the script that does it all.
 
 The test script produces a log: **dbg.log** or **rel.log** for the Debug and Release bits respectively. Compare them with their committed baselines and make sure all the differences can be explained.

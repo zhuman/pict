@@ -3,7 +3,7 @@
 # variables used to generate a source snapshot of the GIT repo
 COMMIT=$(shell git log --pretty=format:'%H' -n 1)
 SHORT_COMMIT=$(shell git log --pretty=format:'%h' -n 1)
-CXXFLAGS=-fPIC -pipe -std=c++11 -O2 -Iapi
+CXXFLAGS=-fPIC -pipe -std=c++17 -O2 -Iapi
 TARGET=pict
 TARGET_BENCH=pict-benchmark
 TARGET_LIB_SO=libpict.so

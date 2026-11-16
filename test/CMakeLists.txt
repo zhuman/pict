@@ -9,3 +9,7 @@ add_test(
   COMMAND $<TARGET_FILE:pict_benchmark> --runs 3 --benchmark 3^4
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
+
+add_executable(exclusion_allocator_test exclusion_allocator.cpp)
+target_link_libraries(exclusion_allocator_test PRIVATE pict_api PictBuildOptions)
+add_test(NAME exclusion_allocator COMMAND exclusion_allocator_test)
