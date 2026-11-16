@@ -1,5 +1,6 @@
 #include "generator.h"
 #include "deriver.h"
+#include <unordered_set>
 using namespace std;
 
 namespace pictcore
@@ -1192,6 +1193,9 @@ void Model::processExclusions( ComboCollection& vecCombo )
         ( *ip )->SortCombinations();
     }
 
+    std::unordered_set<Combination*> applied;
+    if( !m_exclusions.empty() ) applied.reserve( vecCombo.size() );
+
     for( ExclusionCollection::iterator iexcl = m_exclusions.begin(); iexcl != m_exclusions.end(); ++iexcl )
     {
         // paranoia; shouldn't happen
@@ -1252,6 +1256,10 @@ void Model::processExclusions( ComboCollection& vecCombo )
 
         for( ComboCollection::iterator ic = intersection.begin(); ic != intersection.end(); ++ic )
         {
+            // A combination can occur in many intersections; applying the same
+            // fixed collection again only repeats idempotent bitmap updates.
+            if( !applied.insert( *ic ).second ) continue;
+
             // all exclusions must be applied to the combo and not just the current one
             for( ExclusionCollection::iterator ie = m_exclusions.begin(); ie != m_exclusions.end(); ++ie )
             {

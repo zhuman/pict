@@ -37,6 +37,8 @@ cons206.txt -c     -> SUCCESS
 cons220.txt        -> SUCCESS
 cons221.txt        -> SUCCESS
 cons222.txt        -> SUCCESS
+cons223.txt /o:3   -> SUCCESS
+cons224.txt        -> SUCCESS
 
 cons037.txt        -> SUCCESS
 cons038.txt        -> SUCCESS

@@ -1,0 +1,22 @@
+P0: 0, 1
+P1: 0, 1
+P2: 0, 1
+P3: 0, 1
+P4: 0, 1
+P5: 0, 1
+
+IF [P0] = 0 THEN [P1] <> 0;
+IF [P0] = 0 THEN [P2] <> 0;
+IF [P0] = 0 THEN [P3] <> 0;
+IF [P0] = 0 THEN [P4] <> 0;
+IF [P0] = 0 THEN [P5] <> 0;
+IF [P1] = 0 THEN [P2] <> 0;
+IF [P1] = 0 THEN [P3] <> 0;
+IF [P1] = 0 THEN [P4] <> 0;
+IF [P1] = 0 THEN [P5] <> 0;
+IF [P2] = 0 THEN [P3] <> 0;
+IF [P2] = 0 THEN [P4] <> 0;
+IF [P2] = 0 THEN [P5] <> 0;
+IF [P3] = 0 THEN [P4] <> 0;
+IF [P3] = 0 THEN [P5] <> 0;
+IF [P4] = 0 THEN [P5] <> 0;
