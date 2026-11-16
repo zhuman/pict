@@ -116,6 +116,47 @@ void derivedExclusionsOutliveScratch()
     std::sort( expected.lbegin(), expected.lend() );
     require( copy.GetList() == expected.GetList() );
 }
+
+void branchRollbackKeepsExclusionsIndependent()
+{
+    Task task( 1 );
+    Parameter a( 2, 0, 2, L"a", false );
+    Parameter b( 2, 1, 2, L"b", false );
+    Parameter c( 2, 2, 2, L"c", false );
+    Parameter d( 2, 3, 2, L"d", false );
+    ExclusionDeriver deriver( &task );
+    for( Parameter* parameter : { &a, &b, &c, &d } )
+    {
+        deriver.AddParameter( parameter );
+    }
+
+    ExclusionCollection expected;
+    auto add = [&]( Parameter* first, int firstValue, Parameter* second, int secondValue )
+    {
+        Exclusion exclusion;
+        exclusion.insert( ExclusionTerm( first, firstValue ) );
+        exclusion.insert( ExclusionTerm( second, secondValue ) );
+        expected.insert( exclusion );
+    };
+    add( &a, 0, &b, 0 );
+    add( &a, 1, &c, 0 );
+    add( &a, 1, &d, 0 );
+    add( &a, 0, &c, 1 );
+    for( const auto& original : expected )
+    {
+        Exclusion copy( original );
+        deriver.AddExclusion( copy, true );
+    }
+    add( &b, 0, &c, 0 );
+    add( &b, 0, &d, 0 );
+    add( &c, 1, &d, 0 );
+    deriver.DeriveExclusions();
+    require( deriver.GetExclusions().size() == expected.size() );
+    for( const auto& exclusion : expected )
+    {
+        require( deriver.GetExclusions().find( exclusion ) != deriver.GetExclusions().end() );
+    }
+}
 }
 
 int main()
@@ -123,4 +164,5 @@ int main()
     scratchCopiesUseResource();
     storedCopiesOutlivePool();
     derivedExclusionsOutliveScratch();
+    branchRollbackKeepsExclusionsIndependent();
 }

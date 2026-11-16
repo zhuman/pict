@@ -172,7 +172,7 @@ void ExclusionDeriver::peformDelete()
 //        for this parameter, organized into buckets by value.
 // Also, ProcessExclusions has set up static ptrs to model, parameter
 //
-inline void ExclusionDeriver::buildExclusion( Exclusion& exclImplied, vector<ExclPtrList>::iterator begin )
+inline void ExclusionDeriver::buildExclusion( Exclusion& exclImplied, vector<ExclPtrList>::iterator begin, ExclTermIterList& inserted )
 {
     // derivation can take a long time, use the call back to check if it should be aborted
     if( m_task->AbortGeneration() )
@@ -191,13 +191,14 @@ inline void ExclusionDeriver::buildExclusion( Exclusion& exclImplied, vector<Exc
             // check for contradiction, continue if found
             if( !consistent( exclImplied, **i ) ) continue; 
 
-            // merge the exclusion into the given one to make a new one
-            Exclusion excl( exclImplied, exclImplied.GetList().get_allocator().resource() );
+            // Only undo newly inserted terms; shared terms belong to ancestors.
+            const size_t previous = inserted.size();
             for( Exclusion::iterator ie = ( *i )->begin(); ie != ( *i )->end(); ++ie )
             {
                 if( ie->first != m_currentParam )
                 {
-                    excl.insert( *ie );
+                    auto result = exclImplied.insert( *ie );
+                    if( result.second ) inserted.push_back( result.first );
                 }
             }
 
@@ -209,10 +210,16 @@ inline void ExclusionDeriver::buildExclusion( Exclusion& exclImplied, vector<Exc
             // before it reaches a size of 3; very rarely there will be an broader
             // exclusion for size <3
 
-            if( alreadyInCollection( excl ) ) continue;
+            if( !alreadyInCollection( exclImplied ) )
+            {
+                buildExclusion( exclImplied, begin + 1, inserted );
+            }
 
-            // call buildExclusion on next bucket, passing our exclusion in progress
-            buildExclusion( excl, begin + 1 );
+            while( inserted.size() > previous )
+            {
+                exclImplied.erase( inserted.back() );
+                inserted.pop_back();
+            }
         }
     }
     else
@@ -308,6 +315,8 @@ void ExclusionDeriver::DeriveExclusions()
     // Recycle temporary set nodes and vector buffers across recursive branches.
     // Each derivation owns its pool; independent tasks never share it.
     std::pmr::unsynchronized_pool_resource scratch;
+    ExclTermIterList inserted;
+    inserted.reserve( m_parameters.size() );
 
     while( !m_worklist.empty() )
     {
@@ -355,7 +364,7 @@ void ExclusionDeriver::DeriveExclusions()
         // recursively build all cover sets, building up exclusion on other params
         Exclusion exclImplied( &scratch );
         m_end = buckets.end();
-        buildExclusion( exclImplied, buckets.begin() );
+        buildExclusion( exclImplied, buckets.begin(), inserted );
 
         peformDelete();
     }

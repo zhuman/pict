@@ -284,6 +284,14 @@ public:
         return insert( Term ).first;
     }
 
+    void erase( iterator position )
+    {
+        auto term = std::find( vec.begin(), vec.end(), *position );
+        assert( term != vec.end() );
+        vec.erase( term );
+        col.erase( position );
+    }
+
     bool operator <( const Exclusion& Excl ) const {
         return( size() != Excl.size() ? size() < Excl.size() : -1 == compareExclusions( *this, Excl ) );
     }

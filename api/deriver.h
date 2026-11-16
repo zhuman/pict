@@ -7,6 +7,7 @@ namespace pictcore
 {
 
 typedef std::list<Exclusion*> ExclPtrList;
+typedef std::vector<Exclusion::iterator> ExclTermIterList;
 
 //
 //
@@ -25,7 +26,7 @@ public:
     void DeriveExclusions();
 
 private:
-    void buildExclusion( Exclusion &Excl, std::vector<ExclPtrList>::iterator begin );
+    void buildExclusion( Exclusion &Excl, std::vector<ExclPtrList>::iterator begin, ExclTermIterList& inserted );
     bool consistent( Exclusion &a, Exclusion &b );
     bool alreadyInCollection( Exclusion &a );
 
